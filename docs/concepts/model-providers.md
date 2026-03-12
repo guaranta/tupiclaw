@@ -400,6 +400,16 @@ Then set a model (replace with one of the IDs returned by `/v1/models`):
 
 See [/providers/vllm](/providers/vllm) for details.
 
+### llama.cpp
+
+llama.cpp (and llama-cpp-python) serve models via an OpenAI-compatible HTTP API:
+
+- Provider: `llamacpp` (explicit config; no auto-discovery)
+- Default base URL: `http://127.0.0.1:8080/v1`
+- Example model: `llamacpp/gpt-oss-20b`
+
+See [/providers/llamacpp](/providers/llamacpp) for setup.
+
 ### Local proxies (LM Studio, vLLM, LiteLLM, etc.)
 
 Example (OpenAI‑compatible):

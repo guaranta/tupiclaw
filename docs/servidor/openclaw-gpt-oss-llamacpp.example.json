@@ -1,0 +1,28 @@
+{
+  "models": {
+    "mode": "merge",
+    "providers": {
+      "llamacpp": {
+        "baseUrl": "http://172.17.0.1:8080/v1",
+        "apiKey": "llamacpp-local",
+        "api": "openai-completions",
+        "models": [
+          {
+            "id": "gpt-oss-20b",
+            "name": "GPT-OSS 20B",
+            "reasoning": false,
+            "input": ["text"],
+            "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
+            "contextWindow": 32768,
+            "maxTokens": 8192
+          }
+        ]
+      }
+    }
+  },
+  "agents": {
+    "defaults": {
+      "model": { "primary": "llamacpp/gpt-oss-20b" }
+    }
+  }
+}

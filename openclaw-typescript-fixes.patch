@@ -1,0 +1,242 @@
+diff --git a/src/agents/anthropic-payload-log.ts b/src/agents/anthropic-payload-log.ts
+index d80ed5511..883e79420 100644
+--- a/src/agents/anthropic-payload-log.ts
++++ b/src/agents/anthropic-payload-log.ts
+@@ -136,7 +136,7 @@ export function createAnthropicPayloadLogger(params: {
+       if (!isAnthropicModel(model)) {
+         return streamFn(model, context, options);
+       }
+-      const nextOnPayload = (payload: unknown) => {
++      const nextOnPayload = (payload: unknown, meta?: unknown) => {
+         const redactedPayload = redactImageDataForDiagnostics(payload);
+         record({
+           ...base,
+@@ -145,7 +145,7 @@ export function createAnthropicPayloadLogger(params: {
+           payload: redactedPayload,
+           payloadDigest: digest(redactedPayload),
+         });
+-        return options?.onPayload?.(payload);
++        return options?.onPayload?.(payload, meta);
+       };
+       return streamFn(model, context, {
+         ...options,
+diff --git a/src/agents/openai-ws-stream.ts b/src/agents/openai-ws-stream.ts
+index 04550a665..99d079364 100644
+--- a/src/agents/openai-ws-stream.ts
++++ b/src/agents/openai-ws-stream.ts
+@@ -797,7 +797,7 @@ export function createOpenAIWebSocketStreamFn(
+         ...(prevResponseId ? { previous_response_id: prevResponseId } : {}),
+         ...extraParams,
+       };
+-      const nextPayload = options?.onPayload?.(payload);
++      const nextPayload = options?.onPayload?.(payload, meta);
+       const requestPayload = (nextPayload ?? payload) as Parameters<
+         OpenAIWebSocketManager["send"]
+       >[0];
+diff --git a/src/agents/pi-embedded-runner/anthropic-stream-wrappers.ts b/src/agents/pi-embedded-runner/anthropic-stream-wrappers.ts
+index 66718b9e0..3a67b22bb 100644
+--- a/src/agents/pi-embedded-runner/anthropic-stream-wrappers.ts
++++ b/src/agents/pi-embedded-runner/anthropic-stream-wrappers.ts
+@@ -277,7 +277,7 @@ export function createAnthropicToolPayloadCompatibilityWrapper(
+     const originalOnPayload = options?.onPayload;
+     return underlying(model, context, {
+       ...options,
+-      onPayload: (payload) => {
++      onPayload: (payload, meta) => {
+         if (
+           payload &&
+           typeof payload === "object" &&
+@@ -298,7 +298,7 @@ export function createAnthropicToolPayloadCompatibilityWrapper(
+             );
+           }
+         }
+-        return originalOnPayload?.(payload);
++        return originalOnPayload?.(payload, meta);
+       },
+     });
+   };
+diff --git a/src/agents/pi-embedded-runner/extra-params.ts b/src/agents/pi-embedded-runner/extra-params.ts
+index 6e261463d..f9d4c7c32 100644
+--- a/src/agents/pi-embedded-runner/extra-params.ts
++++ b/src/agents/pi-embedded-runner/extra-params.ts
+@@ -222,7 +222,7 @@ function createGoogleThinkingPayloadWrapper(
+     const onPayload = options?.onPayload;
+     return underlying(model, context, {
+       ...options,
+-      onPayload: (payload) => {
++      onPayload: (payload, meta) => {
+         if (model.api === "google-generative-ai") {
+           sanitizeGoogleThinkingPayload({
+             payload,
+@@ -230,7 +230,7 @@ function createGoogleThinkingPayloadWrapper(
+             thinkingLevel,
+           });
+         }
+-        return onPayload?.(payload);
++        return onPayload?.(payload, meta);
+       },
+     });
+   };
+@@ -258,12 +258,12 @@ function createZaiToolStreamWrapper(
+     const originalOnPayload = options?.onPayload;
+     return underlying(model, context, {
+       ...options,
+-      onPayload: (payload) => {
++      onPayload: (payload, meta) => {
+         if (payload && typeof payload === "object") {
+           // Inject tool_stream: true for Z.AI API
+           (payload as Record<string, unknown>).tool_stream = true;
+         }
+-        return originalOnPayload?.(payload);
++        return originalOnPayload?.(payload, meta);
+       },
+     });
+   };
+diff --git a/src/agents/pi-embedded-runner/moonshot-stream-wrappers.ts b/src/agents/pi-embedded-runner/moonshot-stream-wrappers.ts
+index aa43260e5..d3d4ef724 100644
+--- a/src/agents/pi-embedded-runner/moonshot-stream-wrappers.ts
++++ b/src/agents/pi-embedded-runner/moonshot-stream-wrappers.ts
+@@ -53,14 +53,14 @@ export function createSiliconFlowThinkingWrapper(baseStreamFn: StreamFn | undefi
+     const originalOnPayload = options?.onPayload;
+     return underlying(model, context, {
+       ...options,
+-      onPayload: (payload) => {
++      onPayload: (payload, meta) => {
+         if (payload && typeof payload === "object") {
+           const payloadObj = payload as Record<string, unknown>;
+           if (payloadObj.thinking === "off") {
+             payloadObj.thinking = null;
+           }
+         }
+-        return originalOnPayload?.(payload);
++        return originalOnPayload?.(payload, meta);
+       },
+     });
+   };
+@@ -89,7 +89,7 @@ export function createMoonshotThinkingWrapper(
+     const originalOnPayload = options?.onPayload;
+     return underlying(model, context, {
+       ...options,
+-      onPayload: (payload) => {
++      onPayload: (payload, meta) => {
+         if (payload && typeof payload === "object") {
+           const payloadObj = payload as Record<string, unknown>;
+           let effectiveThinkingType = normalizeMoonshotThinkingType(payloadObj.thinking);
+@@ -106,7 +106,7 @@ export function createMoonshotThinkingWrapper(
+             payloadObj.tool_choice = "auto";
+           }
+         }
+-        return originalOnPayload?.(payload);
++        return originalOnPayload?.(payload, meta);
+       },
+     });
+   };
+diff --git a/src/agents/pi-embedded-runner/openai-stream-wrappers.ts b/src/agents/pi-embedded-runner/openai-stream-wrappers.ts
+index 5667d39e8..59d644825 100644
+--- a/src/agents/pi-embedded-runner/openai-stream-wrappers.ts
++++ b/src/agents/pi-embedded-runner/openai-stream-wrappers.ts
+@@ -187,7 +187,7 @@ export function createOpenAIResponsesContextManagementWrapper(
+     const originalOnPayload = options?.onPayload;
+     return underlying(model, context, {
+       ...options,
+-      onPayload: (payload) => {
++      onPayload: (payload, meta) => {
+         if (payload && typeof payload === "object") {
+           applyOpenAIResponsesPayloadOverrides({
+             payloadObj: payload as Record<string, unknown>,
+@@ -197,7 +197,7 @@ export function createOpenAIResponsesContextManagementWrapper(
+             compactThreshold,
+           });
+         }
+-        return originalOnPayload?.(payload);
++        return originalOnPayload?.(payload, meta);
+       },
+     });
+   };
+@@ -219,14 +219,14 @@ export function createOpenAIServiceTierWrapper(
+     const originalOnPayload = options?.onPayload;
+     return underlying(model, context, {
+       ...options,
+-      onPayload: (payload) => {
++      onPayload: (payload, meta) => {
+         if (payload && typeof payload === "object") {
+           const payloadObj = payload as Record<string, unknown>;
+           if (payloadObj.service_tier === undefined) {
+             payloadObj.service_tier = serviceTier;
+           }
+         }
+-        return originalOnPayload?.(payload);
++        return originalOnPayload?.(payload, meta);
+       },
+     });
+   };
+diff --git a/src/agents/pi-embedded-runner/proxy-stream-wrappers.ts b/src/agents/pi-embedded-runner/proxy-stream-wrappers.ts
+index a5f9f5b1d..df8af2096 100644
+--- a/src/agents/pi-embedded-runner/proxy-stream-wrappers.ts
++++ b/src/agents/pi-embedded-runner/proxy-stream-wrappers.ts
+@@ -73,7 +73,7 @@ export function createOpenRouterSystemCacheWrapper(baseStreamFn: StreamFn | unde
+     const originalOnPayload = options?.onPayload;
+     return underlying(model, context, {
+       ...options,
+-      onPayload: (payload) => {
++      onPayload: (payload, meta) => {
+         const messages = (payload as Record<string, unknown>)?.messages;
+         if (Array.isArray(messages)) {
+           for (const msg of messages as Array<{ role?: string; content?: unknown }>) {
+@@ -92,7 +92,7 @@ export function createOpenRouterSystemCacheWrapper(baseStreamFn: StreamFn | unde
+             }
+           }
+         }
+-        return originalOnPayload?.(payload);
++        return originalOnPayload?.(payload, meta);
+       },
+     });
+   };
+@@ -111,9 +111,9 @@ export function createOpenRouterWrapper(
+         ...OPENROUTER_APP_HEADERS,
+         ...options?.headers,
+       },
+-      onPayload: (payload) => {
++      onPayload: (payload, meta) => {
+         normalizeProxyReasoningPayload(payload, thinkingLevel);
+-        return onPayload?.(payload);
++        return onPayload?.(payload, meta);
+       },
+     });
+   };
+@@ -136,9 +136,9 @@ export function createKilocodeWrapper(
+         ...options?.headers,
+         ...resolveKilocodeAppHeaders(),
+       },
+-      onPayload: (payload) => {
++      onPayload: (payload, meta) => {
+         normalizeProxyReasoningPayload(payload, thinkingLevel);
+-        return onPayload?.(payload);
++        return onPayload?.(payload, meta);
+       },
+     });
+   };
+diff --git a/src/agents/pi-embedded-runner/run/attempt.ts b/src/agents/pi-embedded-runner/run/attempt.ts
+index f7c4c75e6..6558bb1a0 100644
+--- a/src/agents/pi-embedded-runner/run/attempt.ts
++++ b/src/agents/pi-embedded-runner/run/attempt.ts
+@@ -231,16 +231,16 @@ export function wrapOllamaCompatNumCtx(baseFn: StreamFn | undefined, numCtx: num
+   return (model, context, options) =>
+     streamFn(model, context, {
+       ...options,
+-      onPayload: (payload: unknown) => {
++      onPayload: (payload: unknown, meta?: unknown) => {
+         if (!payload || typeof payload !== "object") {
+-          return options?.onPayload?.(payload);
++          return options?.onPayload?.(payload, meta);
+         }
+         const payloadRecord = payload as Record<string, unknown>;
+         if (!payloadRecord.options || typeof payloadRecord.options !== "object") {
+           payloadRecord.options = {};
+         }
+         (payloadRecord.options as Record<string, unknown>).num_ctx = numCtx;
+-        return options?.onPayload?.(payload);
++        return options?.onPayload?.(payload, meta);
+       },
+     });
+ }

@@ -222,7 +222,7 @@ function createGoogleThinkingPayloadWrapper(
     const onPayload = options?.onPayload;
     return underlying(model, context, {
       ...options,
-      onPayload: (payload) => {
+      onPayload: (payload, meta) => {
         if (model.api === "google-generative-ai") {
           sanitizeGoogleThinkingPayload({
             payload,
@@ -230,7 +230,7 @@ function createGoogleThinkingPayloadWrapper(
             thinkingLevel,
           });
         }
-        return onPayload?.(payload);
+        return onPayload?.(payload, meta);
       },
     });
   };
@@ -258,12 +258,12 @@ function createZaiToolStreamWrapper(
     const originalOnPayload = options?.onPayload;
     return underlying(model, context, {
       ...options,
-      onPayload: (payload) => {
+      onPayload: (payload, meta) => {
         if (payload && typeof payload === "object") {
           // Inject tool_stream: true for Z.AI API
           (payload as Record<string, unknown>).tool_stream = true;
         }
-        return originalOnPayload?.(payload);
+        return originalOnPayload?.(payload, meta);
       },
     });
   };
